@@ -27,9 +27,39 @@ async function run() {
     await client.connect();
 
     const cartCollection = client.db("summerCamp").collection("cart");
+    const userCollection = client.db("summerCamp").collection("user");
 
     // user server api
 
+    app.get('/user',async(req,res)=>{
+      const cursor =userCollection.find();
+      const result=await cursor.toArray();
+      res.send(result)
+    })
+    app.post('/user',async(req,res)=>{
+        const user =req.body;
+        const query={email:user.email}
+        const existing= await userCollection.findOne(query);  
+        if (existing) {
+         return res.send({message:'user already exists'})
+        }
+        const result =await userCollection.insertOne(user)
+        res.send(result)
+    })
+
+    app.patch('/user/admin/:id',async(req,res)=>{
+      const id =req.params.id;
+      const filter ={_id: new ObjectId(id)}
+      const updateDoc ={
+        $set:{
+          role:'admin'
+        },
+      }
+      const result =await userCollection.updateOne(filter,updateDoc);
+      res.send(result)
+    })
+
+    // cart collection apis
     app.get('/cart',async(req,res)=>{
       const email =req.query.email;
       if(!email){
