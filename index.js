@@ -47,14 +47,14 @@ async function run() {
     app.post('/jwt',(req,res)=>{
       const user =req.body;
       var token = jwt.sign(user, process.env.ACCESS_JWT,{
-        expiresIn:1
+        expiresIn:'1h'
       }); 
       res.send({token})
     })
 
     // user server api
 
-    app.get('/user',async(req,res)=>{
+    app.get('/user',verifyJWT,async(req,res)=>{
       const cursor =userCollection.find();
       const result=await cursor.toArray();
       res.send(result)
@@ -69,7 +69,18 @@ async function run() {
         const result =await userCollection.insertOne(user)
         res.send(result)
     })
+    app.get('/user/admin/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
 
+      if (req.decoded.email !== email) {
+        res.send({ admin: false })
+      }
+      const query = { email: email }
+      const user = await userCollection.findOne(query);
+      const result = { admin: user?.role === 'admin' }
+      res.send(result);
+    })
+     
     app.patch('/user/admin/:id',async(req,res)=>{
       const id =req.params.id;
       const filter ={_id: new ObjectId(id)}
