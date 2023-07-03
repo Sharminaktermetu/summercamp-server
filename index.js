@@ -8,6 +8,21 @@ app.use(express.json());
 const jwt = require('jsonwebtoken');
 // summerCamp
 // fYeb7pXgCIOKNi0y
+const verifyJWT =(req,res,next)=>{
+  const authorization =req.headers.authorization;
+  if (!authorization) {
+    return res.status(401).send({error:true, message:'Unauthorized access'})
+  }
+  // bearer token
+  const token =authorization.split(' ')[1];
+  jwt.verify(token,process.env.ACCESS_JWT, (err,decoded)=>{
+    if (err) {
+      return res.status(401).send({error:true, message:'Unauthorized access'})
+    }
+    req.decoded=decoded;
+    next()
+  })
+}
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = "mongodb+srv://summerCamp:fYeb7pXgCIOKNi0y@cluster0.pjt1xjf.mongodb.net/?retryWrites=true&w=majority";
@@ -28,6 +43,14 @@ async function run() {
 
     const cartCollection = client.db("summerCamp").collection("cart");
     const userCollection = client.db("summerCamp").collection("user");
+    // JWT token
+    app.post('/jwt',(req,res)=>{
+      const user =req.body;
+      var token = jwt.sign(user, process.env.ACCESS_JWT,{
+        expiresIn:1
+      }); 
+      res.send({token})
+    })
 
     // user server api
 
@@ -71,10 +94,14 @@ async function run() {
     })
 
     // cart collection apis
-    app.get('/cart',async(req,res)=>{
+    app.get('/cart',verifyJWT,async(req,res)=>{
       const email =req.query.email;
       if(!email){
         res.send([]);
+      }
+      const decodedEmail =req.decoded.email;
+      if (email !== decodedEmail) {
+      return res.status(401).send({error:true, message:'Unauthorized access'});
       }
       const query ={email:email};
       const result= await cartCollection.find(query).toArray();
