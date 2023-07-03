@@ -5,7 +5,7 @@ require('dotenv').config();
 const port =process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
-
+const jwt = require('jsonwebtoken');
 // summerCamp
 // fYeb7pXgCIOKNi0y
 
@@ -53,6 +53,17 @@ async function run() {
       const updateDoc ={
         $set:{
           role:'admin'
+        },
+      }
+      const result =await userCollection.updateOne(filter,updateDoc);
+      res.send(result)
+    })
+    app.patch('/user/instructor/:id',async(req,res)=>{
+      const id =req.params.id;
+      const filter ={_id: new ObjectId(id)}
+      const updateDoc ={
+        $set:{
+          role:'instructor'
         },
       }
       const result =await userCollection.updateOne(filter,updateDoc);
