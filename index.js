@@ -42,6 +42,7 @@ async function run() {
     await client.connect();
 
     const cartCollection = client.db("summerCamp").collection("cart");
+    const classCollection = client.db("summerCamp").collection("class");
     const userCollection = client.db("summerCamp").collection("user");
     // JWT token
     app.post('/jwt',(req,res)=>{
@@ -52,9 +53,24 @@ async function run() {
       res.send({token})
     })
 
-    // user server api
+    // verifyadmin
+    const verifyAdmin=async(req,res,next)=>{
+      const email =req.decoded.email;
+      const query={email:email};
+      const user =await userCollection.findOne(query)
+      if (user?.role !=='admin') {
+        return res.status(401).send({error:true, message:'Unauthorized access'})
+      }
+      next()
+    }
 
-    app.get('/user',verifyJWT,async(req,res)=>{
+    // class related api
+    app.get('/class',async(req,res)=>{
+      const result =await classCollection.find().toArray();
+      res.send(result)
+    })
+    // user server api
+    app.get('/user',verifyJWT,verifyAdmin,async(req,res)=>{
       const cursor =userCollection.find();
       const result=await cursor.toArray();
       res.send(result)
@@ -69,6 +85,7 @@ async function run() {
         const result =await userCollection.insertOne(user)
         res.send(result)
     })
+    // admin protected route
     app.get('/user/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
 
@@ -80,7 +97,19 @@ async function run() {
       const result = { admin: user?.role === 'admin' }
       res.send(result);
     })
-     
+    // instructor protected route
+    app.get('/user/instructor/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ instructor: false })
+      }
+      const query = { email: email }
+      const user = await userCollection.findOne(query);
+      const result = { instructor: user?.role === 'instructor' }
+      res.send(result);
+    })
+    //  make madmin role api
     app.patch('/user/admin/:id',async(req,res)=>{
       const id =req.params.id;
       const filter ={_id: new ObjectId(id)}
@@ -92,6 +121,7 @@ async function run() {
       const result =await userCollection.updateOne(filter,updateDoc);
       res.send(result)
     })
+    // make instructor role api
     app.patch('/user/instructor/:id',async(req,res)=>{
       const id =req.params.id;
       const filter ={_id: new ObjectId(id)}
@@ -118,7 +148,7 @@ async function run() {
       const result= await cartCollection.find(query).toArray();
       res.send(result);
     })
-
+    
     app.post('/cart',async(req,res)=>{
         const items =req.body;
         const result =await cartCollection.insertOne(items)
