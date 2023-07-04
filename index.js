@@ -69,6 +69,34 @@ async function run() {
       const result =await classCollection.find().toArray();
       res.send(result)
     })
+    app.post('/class',async(req,res)=>{
+      const newClass =req.body;
+      const result =await classCollection.insertOne(newClass);
+      res.send(result)
+
+    })
+    
+    app.get('/classes-by-instructor', verifyJWT, async (req, res) => {
+      
+        const instructorEmail = req.query.instructorEmail;
+    
+        if (!instructorEmail) {
+          return res.status(400).send('Missing instructorEmail parameter');
+        }
+    
+        const query = { instructorEmail: instructorEmail };
+        const classes = await classCollection.find(query).toArray();
+        const classCount = await classCollection.countDocuments(query);
+    
+        res.send({
+          classes: classes,
+          classCount: classCount
+        });
+      
+    });
+    
+    
+
     // user server api
     app.get('/user',verifyJWT,verifyAdmin,async(req,res)=>{
       const cursor =userCollection.find();
