@@ -161,15 +161,29 @@ async function run() {
     // instructor protected route
     app.get('/user/instructor/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
-
+    
       if (req.decoded.email !== email) {
-        res.send({ instructor: false })
+        res.send({ instructor: false });
+        return;
       }
+    
       const query = { email: email }
       const user = await userCollection.findOne(query);
-      const result = { instructor: user?.role === 'instructor' }
-      res.send(result);
-    })
+    
+      if (user && user.role === 'instructor') {
+        
+        const instructorInfo = user.instructorInfo;
+        const photoURL = user.photoURL;
+        res.send({ instructor: true, instructorInfo: instructorInfo, photoURL:photoURL});
+      } else {
+        res.send({ instructor: false });
+      }
+    });
+    app.get('/instructors', verifyJWT, async (req, res) => {
+      const query = { role: 'instructor' };
+      const instructors = await userCollection.find(query).toArray();
+      res.send(instructors);
+    });    
     //  make madmin role api
     app.patch('/user/admin/:id',async(req,res)=>{
       const id =req.params.id;
