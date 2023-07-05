@@ -121,6 +121,15 @@ async function run() {
       res.send({result,deleteResult})
 
     })
+    app.get('/payment/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email}; // Modify 'email' to match the field name in your payment collection
+      
+      const paymentHistory = await paymentCollection.find(query).toArray();
+      res.send(paymentHistory);
+      
+    });
+    
     // user server api
     app.get('/user',verifyJWT,verifyAdmin,async(req,res)=>{
       const cursor =userCollection.find();
