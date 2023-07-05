@@ -6,6 +6,7 @@ const port =process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 const jwt = require('jsonwebtoken');
+const stripe = require("stripe")(process.env.PAYMENT_KEY);
 // summerCamp
 // fYeb7pXgCIOKNi0y
 const verifyJWT =(req,res,next)=>{
@@ -44,6 +45,7 @@ async function run() {
     const cartCollection = client.db("summerCamp").collection("cart");
     const classCollection = client.db("summerCamp").collection("class");
     const userCollection = client.db("summerCamp").collection("user");
+    const paymentCollection = client.db("summerCamp").collection("payment");
     // JWT token
     app.post('/jwt',(req,res)=>{
       const user =req.body;
@@ -95,8 +97,30 @@ async function run() {
       
     });
     
+    // payment 
+     app.post("/create-payment-intent",verifyJWT, async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ['card']
+      });
     
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      });
+    });
 
+    app.post('/payment',verifyJWT, async(req,res)=>{
+      const payment =req.body;
+      const result = await paymentCollection.insertOne(payment);
+      const query={_id:{$in:payment.itemsId.map(id=> new ObjectId(id))}}
+      const deleteResult =await cartCollection.deleteMany(query)
+      res.send({result,deleteResult})
+
+    })
     // user server api
     app.get('/user',verifyJWT,verifyAdmin,async(req,res)=>{
       const cursor =userCollection.find();
