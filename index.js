@@ -7,26 +7,25 @@ app.use(cors());
 app.use(express.json());
 const jwt = require('jsonwebtoken');
 const stripe = require("stripe")(process.env.PAYMENT_KEY);
-// summerCamp
-// fYeb7pXgCIOKNi0y
+
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
-    return res.status(401).send({ error: true, message: 'Unauthorized access' })
+    return res.status(401).send({ error: true, message: 'Unauthorized access' });
   }
-  // bearer token
   const token = authorization.split(' ')[1];
   jwt.verify(token, process.env.ACCESS_JWT, (err, decoded) => {
     if (err) {
-      return res.status(401).send({ error: true, message: 'Unauthorized access' })
+      return res.status(401).send({ error: true, message: 'Unauthorized access' });
     }
     req.decoded = decoded;
-    next()
-  })
-}
+    next();
+  });
+};
+
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const uri = "mongodb+srv://summerCamp:fYeb7pXgCIOKNi0y@cluster0.pjt1xjf.mongodb.net/?retryWrites=true&w=majority";
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.pjt1xjf.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -40,7 +39,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const cartCollection = client.db("summerCamp").collection("cart");
     const classCollection = client.db("summerCamp").collection("class");
@@ -50,7 +49,7 @@ async function run() {
     app.post('/jwt', (req, res) => {
       const user = req.body;
       var token = jwt.sign(user, process.env.ACCESS_JWT, {
-        expiresIn: '1h'
+        expiresIn: '5h'
       });
       res.send({ token })
     })
@@ -61,6 +60,15 @@ async function run() {
       const query = { email: email };
       const user = await userCollection.findOne(query)
       if (user?.role !== 'admin') {
+        return res.status(401).send({ error: true, message: 'Unauthorized access' })
+      }
+      next()
+    }
+    const verifyInstructor = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query)
+      if (user?.role !== 'instructor') {
         return res.status(401).send({ error: true, message: 'Unauthorized access' })
       }
       next()
@@ -107,7 +115,7 @@ async function run() {
         // Update the class status to "Denied" in the database
         const filter = { _id: new ObjectId(id) };
         const updateDoc = {
-          $set: { status: 'denied' }
+          $set: { status: 'Deny' }
         };
         const result = await classCollection.updateOne(filter, updateDoc);
 
@@ -121,7 +129,7 @@ async function run() {
 // ...
 
     // --------------//
-    app.get('/classes-by-instructor', verifyJWT, async (req, res) => {
+    app.get('/classes-by-instructor', verifyJWT,verifyInstructor, async (req, res) => {
 
       const instructorEmail = req.query.instructorEmail;
 
@@ -205,7 +213,7 @@ async function run() {
 
 
     // instructor protected route
-    app.get('/user/instructor/:email', verifyJWT, async (req, res) => {
+    app.get('/user/instructor/:email',verifyJWT, async (req, res) => {
       const email = req.params.email;
 
       if (req.decoded.email !== email) {
@@ -225,7 +233,7 @@ async function run() {
         res.send({ instructor: false });
       }
     });
-    app.get('/instructors', verifyJWT, async (req, res) => {
+    app.get('/instructors', async (req, res) => {
       const query = { role: 'instructor' };
       const instructors = await userCollection.find(query).toArray();
       res.send(instructors);
